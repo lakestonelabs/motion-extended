@@ -1,7 +1,7 @@
 # Motion-extended
 A wrapper script that adds extra functionality to the [motion](https://motion-project.github.io/) video signaling program.  The first focus of motion-extended is to add scheduling functionality to motion.  More functionality will be added in the future such as sending notifications to various endpoints such as email, Riot(matrix), Slack and more. 
 
-### Prerequisites
+## Prerequisites
 
 * Linux
 * One or more cameras supported by [motion](https://motion-project.github.io/) .
