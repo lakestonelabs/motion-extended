@@ -1,0 +1,280 @@
+#!/usr/bin/php
+<?php
+
+/* 
+ * Copyright (C) 2020 Lakestone Labs
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+require_once __DIR__.'/vendor/autoload.php';
+require_once __DIR__.'/includes/Misc.php';
+
+// Tick use required for signal handling.
+declare(ticks = 1);
+
+// Do our own handling of kill/term signals.  i.e. Cntrl-C.  This is used so we 
+// terminate all of the sub processes we spawn gracefully.
+pcntl_signal(SIGINT, "pctnl_signal_handler");
+pcntl_signal(SIGHUP, "pctnl_signal_handler");
+pcntl_signal(SIGTERM, "pctnl_signal_handler");
+pcntl_signal(SIGTRAP, "pctnl_signal_handler");
+
+////////////// START of retrieving config info. ////////////////////
+if (!in_array("-c", $argv))
+{
+    echo "You must specify a motin configuration file.\n";
+    exit(1);
+}
+
+$dash_c_position = array_search("-c",  $argv);
+if(isset($argv[($dash_c_position + 1)]))
+{
+    $config_file = $argv[($dash_c_position + 1)];
+    if(!is_file($config_file))
+    {
+        echo "Specified config file ".$config_file." does not exist.  Can't continue.\n";
+        exit(1);
+    }
+}
+else
+{
+    echo "Could not find config path expression directly after the -c switch.\n";
+    exit(1);
+}
+////////////// END of retrieving config info. ////////////////////
+
+
+///////////// START of retrieving scheduling info. ////////////////////
+if(!in_array("-e", $argv))
+{
+    echo "You have not specified the -e switch which is the location of the motion-ext configuration file.\n";
+    exit(1);
+}
+
+$dash_e_position = array_search("-e", $argv);
+if(isset($argv[($dash_e_position + 1)]))
+{
+    $motion_ext_config_file = $argv[($dash_e_position + 1)];
+    if(!is_file($motion_ext_config_file))
+    {
+        echo "Specified motion-ext config file ".$motion_ext_config_file." does not exist.  Can't continue.\n";
+        exit(1);
+    }
+}
+else
+{
+    echo "Could not find the motion-ext config path expression directly after the -e switch.\n";
+    exit(1);
+}
+
+$motion_ext_config = json_decode(file_get_contents($motion_ext_config_file));
+if($motion_ext_config == "FALSE" || $motion_ext_config == "NULL")
+{
+    echo "Failed to decode the motion-ext.json file.  Is this a valid json file?\n";
+    exit(1);
+}
+////////////// END of retrieving scheduling info. ////////////////////
+
+
+
+/*
+Make sure that the main motion config file does not have 'movie_output' set to on.  We can't function in this
+configuration.  The reason why?  Since we need to schedule capturing of each camera on a schedule we will
+set the 'movie_output' per camera based on the camera's schedule.  If it's set at the global level then we
+will be capturing motion video all of the time for all cameras.
+*/
+$motion_config_array = file($config_file);
+foreach($motion_config_array as $motion_config_line_index => $motion_config_line)
+{
+    if(preg_match("/^\s{0,}movie_output\s+on/", $motion_config_line) === 1)
+    {
+        echo "The main motion.conf contains 'movie_output on'.  This parameter needs to be set to off for scheduling to function properly.\n";
+        exit(1);
+    }
+    
+    if(preg_match("/^videodevice\s+\/dev\/video0/", $motion_config_line) === 1)
+    {
+        echo "The main motion.conf contains the 'videodevice /dev/video0' setting.  It's recommended to set this to a bogus device so that motion does not default to /dev/video0.\n";
+        exit(1);
+    }
+    
+    if(preg_match("/^\s{0,}camera_dir\s+(\S+)/", $motion_config_line, $matches) === 1)
+    {
+        $camera_dir = $matches[1];
+        if(!is_dir($camera_dir))
+        {
+            echo "The directory 'camera_dir' (".$camera_dir.") specified in ".$config_file." does not exist.  Can't continue.\n";
+            exit(1);
+        }
+    }
+}
+
+// Now setup the cameras per their schedules.
+foreach($motion_ext_config as $camera_name => $camera_config)
+{
+    foreach($camera_config->schedules as $this_schedule_index => $this_schedule)
+    {
+        // Setup the cron logic based on schedules.
+        if(isset($this_schedule->cron_expr))
+        {
+            try
+            {
+                $cron_obj = Cron\CronExpression::factory($this_schedule->cron_expr);
+            }
+            catch (Exception $e)
+            {
+                throw $e;
+            }
+            $motion_ext_config->$camera_name->schedules[$this_schedule_index]->cron_obj = $cron_obj;
+        }
+        else
+        {
+            throw Exception(__METHOD__.": There is no 'cron_expr' for schedule named ".$this_schedule->name." for camera ".$camera_name.".  Please fix.");
+        }
+    }
+}
+
+try
+{
+    $process_array = Misc::runLocalProgram("/usr/bin/motion", array("-c", $config_file));
+    $process = $process_array["resource"];
+    $process_pipes = $process_array["pipes"];
+}
+catch (Exception $e)
+{
+    echo "Failed to execute the motion program.  Caugh exception was: ".$e->getMessage()."\n";
+    exit(1);
+}
+
+// Allow motion to fully startup before we potentially need to restart it based on camera schedules.
+sleep(15);
+
+
+while(true)
+{
+    $restart = false;  // Start with a clean slate.
+    
+    foreach($motion_ext_config as $camera_name => $camera_config)
+    {
+        // Only continue if we have a valid motion camera config.
+        if(is_file($camera_dir."/".$camera_name.".conf") || is_file($camera_dir."/".$camera_name.".conf.disabled"))
+        {
+            foreach($camera_config->schedules as $this_schedule_index => $this_schedule)
+            { 
+                $cron_obj = $motion_ext_config->$camera_name->schedules[$this_schedule_index]->cron_obj;
+                // Disable cameras that are not due to run and restart the applicaton.
+                if(!$cron_obj->isDue())
+                {
+                    //echo "Disabling camera ".$camera_name." since it's not due to run right now.\n";
+                    if(is_file($camera_dir."/".$camera_name.".conf"))
+                    {
+                        if(rename($camera_dir."/".$camera_name.".conf", $camera_dir."/".$camera_name.".conf.disabled"))
+                        {
+                            $restart = true;
+                        }
+                        else
+                        {
+                            echo "Failed to rename ".$camera_dir."/".$camera_name.".conf to ".$camera_dir."/".$camera_name.".conf.disabled when attempting to disable camera.\n";
+                        }
+                    }
+                }
+                else
+                {
+                    // This camera is suppose to be enabled.  If disabled the mark for restart to enable.
+                    if(is_file($camera_dir."/".$camera_name.".conf.disabled"))
+                    {
+                        //echo "Enabling camera ".$camera_name.".\n";
+                        if(rename($camera_dir."/".$camera_name.".conf.disabled", $camera_dir."/".$camera_name.".conf"))
+                        {
+                            $restart = true;
+                        }
+                        else
+                        {
+                            echo "Failed to rename ".$camera_dir."/".$camera_name.".conf.disabled to ".$camera_dir."/".$camera_name.".conf when attempting to enable camera.\n";
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if($restart)
+    {
+        // Close our process pipes so we don't deadlock.
+        foreach($process_pipes as $this_pipe)
+        {
+            fclose($this_pipe);
+        }
+        
+        $proc_status = proc_get_status($process);
+        $kill_attempt = 0;
+        while($proc_status["running"])
+        {
+            if($kill_attempt < 5)
+            {
+                // Kill motion (equivelant to Ctrl-C on the terminal). and restart it with the new configs.
+                $return_code = proc_terminate($process, SIGINT);
+            }
+            else
+            {
+                // Cut it's head off since it has not reponded to our nice kill attempts.
+                echo "Forcibly killed motion with SIGKILL signal.  Please investigate as to why motion is not exiting with SIGINT signals.\n";
+                $return_code = proc_terminate($process, SIGKILL);
+            }
+            $kill_attempt++;
+            sleep(5);  // Allow motion to fully stop before we interrogate it again.
+            $proc_status = proc_get_status($process);
+        }
+        if((int)$proc_status["exitcode"] < 0 || (int)$proc_status["exitcode"] > 0)
+        {
+            echo "The motion process exited abnormally with an exit code of: ".$proc_status["exitcode"].".  Please investigate why this is occurring.\n";
+        }
+       
+        try
+        {
+            $process_array = Misc::runLocalProgram("/usr/bin/motion", array("-c", "/home/mlee/.motion/motion.conf"));
+            $process = $process_array["resource"];
+            $process_pipes = $process_array["pipes"];
+        }
+        catch (Exception $e)
+        {
+            echo "Failed to restart the motion program.  Caugh exception was: ".$e->getMessage()."\n";
+            exit(1);
+        }
+    }
+    
+    sleep(60);  // The lowest resolution for CronExpression is one minute.
+}
+
+// Shutdown motion, and any other sub-processes gracefully.
+function pctnl_signal_handler($signal)
+{
+    echo "Caught signal ".$signal."\n";
+    global $process, $process_pipes;
+    
+    // Close our process pipes so we don't deadlock.
+    echo "Closing motion process pipes...";
+    foreach($process_pipes as $this_pipe)
+    {
+        fclose($this_pipe);
+    }
+    echo "Done\n";
+    
+    echo "Terminating motion process with the same signal we received...";
+    proc_terminate($process, $signal);
+    echo "Done\n";
+    
+    exit(0);
+}

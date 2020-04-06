@@ -1,0 +1,46 @@
+{
+    "utility": 
+    {
+        "schedules":
+        [
+            {
+                "name": "Capture anything anytime.",
+                "cron_expr": "* * * * *"
+            }
+        ]
+    },
+    "livingroom":
+    {
+        "schedules":
+        [
+            {
+                "name": "Late-night captures1.",
+                "cron_expr": "* 23 * * *"
+            },
+            {
+                "name": "Late-night captures2.",
+                "cron_expr": "* 0-5 * * *"
+            }
+        ]
+    },
+    "driveway":
+    {
+        "schedules":
+        [
+            {
+                "name": "Capture anything anytime.",
+                "cron_expr": "* * * * *"
+            }
+        ]
+    },
+    "downstairs":
+    {
+        "schedules":
+        [
+            {
+                "name": "Capture anything anytime.",
+                "cron_expr": "* * * * *"
+            }
+        ]
+    }
+}

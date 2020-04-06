@@ -1,0 +1,7 @@
+{
+    "require": {
+        "monolog/monolog": "^1.23",
+        "dragonmantank/cron-expression": "^3.0",
+        "ext-openssl": "*"
+    }
+}
