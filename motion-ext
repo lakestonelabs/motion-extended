@@ -34,7 +34,7 @@ pcntl_signal(SIGTRAP, "pctnl_signal_handler");
 ////////////// START of retrieving config info. ////////////////////
 if (!in_array("-c", $argv))
 {
-    echo "You must specify a motin configuration file.\n";
+    echo "You must specify a motion configuration file.\n";
     exit(1);
 }
 
@@ -229,7 +229,7 @@ while(true)
             }
             else
             {
-                // Cut it's head off since it has not reponded to our nice kill attempts.
+                // Cut its head off since it has not reponded to our nice kill attempts.
                 echo "Forcibly killed motion with SIGKILL signal.  Please investigate as to why motion is not exiting with SIGINT signals.\n";
                 $return_code = proc_terminate($process, SIGKILL);
             }

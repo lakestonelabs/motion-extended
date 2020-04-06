@@ -128,6 +128,11 @@ Class Misc
         {
             $log_location = "/tmp/".basename($program).".log";
         }
+        
+        foreach($args_array as $this_arg_index => $this_arg)
+        {
+            $args_array[$this_arg_index] = escapeshellarg($this_arg);
+        }
 
         // Taken from php.net to setup descriptors.
         $descriptorspec = array(
@@ -147,7 +152,7 @@ Class Misc
         }
 
         $cwd = "/tmp";
-        $process = proc_open($program." ". implode(" ", $args_array), $descriptorspec, $pipes, $cwd, null);
+        $process = proc_open(escapeshellcmd($program)." ". implode(" ", $args_array), $descriptorspec, $pipes, $cwd, null);
          
         if(is_resource($process))
         {
