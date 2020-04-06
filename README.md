@@ -69,6 +69,10 @@ A wrapper script that adds extra functionality to the [motion](https://motion-pr
 
 ```
 
+## Why PHP?
+
+I wrote this in PHP because I like PHP and it's a very robust general-purpose scripting language.  PHP is not just for webpages.  Those who think that only know of PHP from 15 years ago.  These days PHP is considered a general-purpose scripting language and its speed now rivals other popular languages such as Python.
+
 
 ## Authors
 
