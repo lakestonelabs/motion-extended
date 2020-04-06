@@ -1,4 +1,5 @@
 *.conf
+composer*
 **/conf.d
 **/nbproject
 **/vendor
