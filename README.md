@@ -73,6 +73,12 @@ The goal of motion-extended is to take the exiting rock-solid 'motion' program a
 
 ```
 
+## Examples
+`
+motion-ext -c [/path/to/motion/conf/file] -e [/path/to/motion-ext/json/file]
+`
+
+
 ## Why PHP?
 
 I wrote this in PHP because I like PHP and it's a very robust general-purpose scripting language.  PHP is not just for webpages.  Those who think that only know of PHP from 15 years ago.  These days PHP is considered a general-purpose scripting language and its speed now rivals other popular languages such as Python.
