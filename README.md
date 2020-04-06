@@ -14,7 +14,60 @@ A wrapper script that adds extra functionality to the [motion](https://motion-pr
 * Setup motion's configuration files as you usually would.  It's highly recommended you use motion's 'cron.d' directory to define each camera's attributes.
 * Configure motion-extended's configuration file (motion-ext.json) to contain the cron expression(s) for each camera for when you want to capture motion.
 * Run 'motion-ext'.  Don't forget to supply the -c and -e switches which are mandatory.
+* IMPORTANT!  The name of each camera in the 'motion-ext.json' config file must match the motion config file names for each individual camera.
 * Enjoy!
+
+## Example motion-ext.json
+
+```php
+{
+    "utility-room": 
+    {
+        "schedules":
+        [
+            {
+                "name": "Capture anything anytime.",
+                "cron_expr": "* * * * *"
+            }
+        ]
+    },
+    "livingroom":
+    {
+        "schedules":
+        [
+            {
+                "name": "Late-night captures1.",
+                "cron_expr": "* 23 * * *"
+            },
+            {
+                "name": "Late-night captures2.",
+                "cron_expr": "* 0-5 * * *"
+            }
+        ]
+    },
+    "driveway":
+    {
+        "schedules":
+        [
+            {
+                "name": "Capture while at work.",
+                "cron_expr": "* 7-17 * * *"
+            }
+        ]
+    },
+    "downstairs":
+    {
+        "schedules":
+        [
+            {
+                "name": "Capture anything anytime.",
+                "cron_expr": "* * * * *"
+            }
+        ]
+    }
+}
+
+```
 
 
 ## Authors
