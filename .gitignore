@@ -1,4 +1,5 @@
 *.conf
 **/conf.d
 **/nbproject
+**/vendor
 dev_notes.txt
