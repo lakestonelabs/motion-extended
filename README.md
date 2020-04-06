@@ -3,7 +3,7 @@ A wrapper script that adds extra functionality to the [motion](https://motion-pr
 
 There are many open-source nvr programs out there but many suffer from the same problem(s), difficult to install/setup and trying to be jack of all trades but master of none.
 
-The goal of motion-extended is to take the exiting rock-solid 'motion' program and extend it.  Motion is a great app but it does not have any scheduling logic (enabling/disabling motion detection caputure for individual cameras based on a date/time schedule).  That's the first goal of motion-extended, to support scheduling.  More functionality will be added in the future such as sending notifications to various endpoints such as email, Riot(matrix), Slack and more. 
+The goal of motion-extended is to take the existing rock-solid 'motion' program and extend it.  Motion is a great app but it does not have any scheduling logic (enabling/disabling motion detection caputure for individual cameras based on a date/time schedule).  That's the first goal of motion-extended, to support scheduling.  More functionality will be added in the future such as sending notifications to various endpoints such as email, Riot(matrix), Slack and more. 
 
 ## Prerequisites
 
